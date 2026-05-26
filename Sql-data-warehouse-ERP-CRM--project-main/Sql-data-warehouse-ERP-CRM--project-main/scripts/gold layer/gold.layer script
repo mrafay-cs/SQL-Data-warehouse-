@@ -1,0 +1,100 @@
+-- Creating Views for Gold layer --
+-- Join all related tables to each other like all customers info into one table and products info into one table --
+-- Check if there are any duplicates in the data after joining the tables
+-- There will be columns which are same in two tables like gender in customer info and customer additional details table, check with 
+-- source system owners which one to consider and include only that column--
+-- Rename the columns to a more readable and understandble format to business users --
+-- Reorder the columns as per business requirment
+-- Create a surrogate key for dimension table -- it is assigning a serial number to each record -- Surrogate keys are system generated 
+-- assigns unique number to each record in a table
+-- These surrogate keys helps in joining the tables in the data model when unique primary key is not present
+-- Make this table into a view which is used for reporting
+-- do all the quality checks once gold layer view is ready like checking nulls, duplicate records etc
+
+-- Joining all customer related tables -- First identify which is the master customer table here it is Crm_customer_info
+-- Gender column is present in two tables, hence considering only one from crm master table if its not present then from erp table
+
+CREATE VIEW gold.dim_customers AS
+(
+SELECT 
+ROW_NUMBER() OVER(Order by CST_Id) AS Customer_Key, -- This is a surrogate key
+ci.CST_Id AS Customer_ID,
+ci.CST_Key AS Customer_Number,
+ci.CST_FirstName AS First_Name,
+ci.CST_LastName AS Last_Name,
+ci.CST_FirstName + ' ' + ci.CST_LastName AS Full_Name,
+ci.CST_MaritalStatus AS Marital_Status,
+ca.ERP_BirthDate AS Birth_Date,
+CASE WHEN ci.CST_Gender = 'unknown' THEN COALESCE(ca.ERP_Gender,'unknown')
+ELSE ci.CST_Gender
+END AS Gender,
+cl.ERP_Country AS Country,
+ci.CST_CreateDate AS Create_Date
+FROM silver.crm_customer_info ci
+LEFT JOIN silver.erp_cust_az12 ca
+ON	ci.CST_Key = ca.ERP_CID
+LEFT JOIN silver.erp_loc_a101 cl
+ON ci.CST_Key = cl.ERP_CID
+)
+
+
+
+-- Creating views for product dimension table --
+-- check the data quality --
+-- Join all product related tables
+-- change the column names --
+-- Assign a surrogate key 
+-- Product table has historical data based on business requirment either include or exclude that data, here in this case we are including
+-- Rearrange the columns --
+-- As we are including only current data, remove end date column 
+
+CREATE VIEW gold.dim_products AS
+(
+SELECT 
+	ROW_NUMBER() OVER(ORDER BY PRD_Id, PRD_StartDate) AS Product_Number,
+	pa.PRD_Id AS Product_Id,
+	pa.PRD_Key AS Product_Key,
+	pa.PRD_Name AS Product_Name,
+	pa.Category_ID AS Category_ID,
+	pc.ERP_Category AS Category,
+	pc.ERP_Subcategory AS SubCategory,
+	pc.ERP_Maintenance AS Maintenance,
+	PRD_Line AS Product_Line,
+	PRD_Cost AS Product_Cost,
+	PRD_StartDate AS Product_StartDate
+FROM silver.crm_product_info pa
+LEFT JOIN silver.erp_px_cat_g1v2 pc
+ON pa.Category_ID = pc.ERP_ID
+WHERE pa.PRD_EndDate IS NULL
+);
+
+
+-- Creating fact table from sales 
+-- Include all the columns from sales, join it with other dimension tables products and customers using surrogate keys
+-- remove prd key and customer ID exisiting the sales table 
+-- Rename the columns 
+-- Rearrange the columns
+
+CREATE VIEW gold.fact_sales AS
+(
+SELECT 
+si.Sales_OrderNo Order_Number,
+pr.Product_Id Product_Id,
+si.Sales_ProductKey Product_Key,
+si.Sales_CustomerId Customer_Id,
+cr.Customer_Key Customer_Key,
+si.Sales_OrderDate Order_Date,
+si.Sales_ShipDate Ship_Date,
+si.Sales_DueDate Due_Date,
+si.Sales_SaleAmount Sales_Amount,
+si.Sales_Quantity Quantity,
+si.Sales_Price Price
+FROM silver.crm_sales_info si
+LEFT JOIN gold.dim_products pr
+ON si.Sales_ProductKey = pr.Product_Key
+LEFT JOIN gold.dim_customers cr
+ON si.Sales_CustomerId = cr.Customer_Id
+)
+
+
+SELECT * FROM gold.fact_sales

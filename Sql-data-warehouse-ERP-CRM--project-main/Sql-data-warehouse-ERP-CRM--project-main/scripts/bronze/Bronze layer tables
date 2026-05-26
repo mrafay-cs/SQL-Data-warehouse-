@@ -1,0 +1,64 @@
+=============================================================================
+Created Bronze layer tables 
+=============================================================================
+==================================================
+--- Create tables for CRM data for bronze layer --
+====================================================
+-- Create table Customers from CRM source system --
+CREATE TABLE bronze.crm_customer_info
+(
+CST_Id INT,
+CST_Key NVARCHAR(50),
+CST_FirstName NVARCHAR(100),
+CST_LastName NVARCHAR(100),
+CST_MaritalStatus NVARCHAR(10),
+CST_Gender NVARCHAR(10),
+CST_CreateDate DATE
+)
+
+-- Create table Product from CRM source system --
+CREATE TABLE bronze.crm_product_info (
+PRD_Id INT,
+PRD_Key NVARCHAR(100),
+PRD_Name NVARCHAR(100),
+PRD_Cost INT,
+PRD_Line NVARCHAR(50),
+PRD_StartDate DATE,
+PRD_EndDate DATE
+)
+
+-- Create table Sales from CRM system --
+CREATE TABLE bronze.crm_sales_info (
+Sales_OrderNo NVARCHAR(50),
+Sales_ProductKey NVARCHAR(50),
+Sales_CustomerId INT,
+Sales_OrderDate NVARCHAR(50),
+Sales_ShipDate NVARCHAR(50),
+Sales_DueDate NVARCHAR(50),
+Sales_SaleAmount NVARCHAR(50),
+Sales_Quantity INT,
+Sales_Price NVARCHAR(50)
+)
+
+-- Create table Customer age details from ERP --
+CREATE TABLE bronze.erp_cust_az12 (
+ERP_CID NVARCHAR(50),
+ERP_BirthDate DATE,
+ERP_Gender NVARCHAR(50),
+)
+-- Create table Location details from ERP --
+CREATE TABLE bronze.erp_loc_a101 (
+ERP_CID NVARCHAR(50),
+ERP_Country NVARCHAR(50)
+)
+
+-- Create table product category details from ERP --
+CREATE TABLE bronze.erp_px_cat_g1v2 (
+ERP_ID NVARCHAR(50),
+ERP_Category NVARCHAR(50),
+ERP_Subcategory NVARCHAR(50),
+ERP_Maintenance NVARCHAR(50)
+)
+
+
+

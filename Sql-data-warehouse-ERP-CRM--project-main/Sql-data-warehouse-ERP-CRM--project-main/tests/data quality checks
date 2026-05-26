@@ -1,0 +1,302 @@
+-- Validated the data like checking nulls, duplicates, consistency, data profiling etc --
+
+SELECT * FROM bronze.crm_customer_info;
+SELECT * FROM bronze.crm_product_info;
+SELECT * FROM bronze.crm_sales_info;
+SELECT * FROM bronze.erp_cust_az12;
+SELECT * FROM bronze.erp_loc_a101;
+SELECT * FROM bronze.erp_px_cat_g1v2
+
+-- Validating data in silver. customers table
+
+-- Checking duplicates for Primary key CST_id in customer_info table 
+SELECT 
+CST_Id,
+COUNT (*) As Duplicate_Customers
+FROM bronze.crm_customer_info
+GROUP BY CST_Id
+HAVING COUNT(*)  > 1
+
+-- Checking nulls in the data for customer_info table --
+SELECT 
+CST_Id
+FROM bronze.crm_customer_info
+WHERE CST_Id IS NULL
+
+-- Checking duplicates for Primary key CST_id in customer_info table in Silver layer after transformation
+SELECT 
+CST_Id,
+COUNT (*) As Duplicate_Customers
+FROM silver.crm_customer_info
+GROUP BY CST_Id
+HAVING COUNT(*)  > 1
+
+-- Checking nulls in the data table in Silver layer after transformation --
+SELECT 
+CST_Id
+FROM silver.crm_customer_info
+WHERE CST_Id IS NULL
+
+-- Validating data in silver. Product table
+
+-- Check nulls and duplicates in primary key Prd_ID in product table
+SELECT * FROM bronze.crm_product_info;
+
+SELECT PRD_Id,
+COUNT (*)
+FROM bronze.crm_product_info
+GROUP BY PRD_Id
+HAVING COUNT (*) > 1 OR PRD_Id IS NULL
+
+-- Check unwanted spaces in string value columns in prod table --
+SELECT * FROM bronze.crm_product_info
+
+SELECT 
+PRD_Name
+FROM bronze.crm_product_info
+WHERE PRD_Name != TRIM(PRD_Name) 
+
+-- Check for NULLS and Negative numbers in price and cost columns and replace nulls with O --
+SELECT 
+PRD_Cost
+FROM bronze.crm_product_info
+WHERE PRD_Cost IS NULL OR PRD_Cost < 0
+
+-- Check whether product start date is lower than product end date, if not make changes like for all those dates make sure that the end date is updated
+-- one day lesser than the start date --
+SELECT
+PRD_Id,
+PRD_Key,
+PRD_StartDate,
+PRD_EndDate
+FROM bronze.crm_product_info
+WHERE PRD_StartDate > PRD_EndDate 
+
+-- Check nulls and duplicates in primary key Prd_ID in product table after transformation
+SELECT * FROM silver.crm_product_info;
+
+SELECT PRD_Id,
+COUNT (*)
+FROM silver.crm_product_info
+GROUP BY PRD_Id
+HAVING COUNT (*) > 1 OR PRD_Id IS NULL
+
+-- Check unwanted spaces in string value columns in prod table -- After transformation
+SELECT 
+PRD_Name
+FROM silver.crm_product_info
+WHERE PRD_Name != TRIM(PRD_Name) 
+
+-- Check for NULLS and Negative numbers in price and cost columns and replace nulls with O -- After transformation
+SELECT 
+PRD_Cost
+FROM silver.crm_product_info
+WHERE PRD_Cost IS NULL OR PRD_Cost < 0
+
+-- Check whether product start date is lower than product end date, if not make changes like for all those dates make sure that the end date is updated
+-- one day lesser than the start date -- After Transformation
+SELECT
+PRD_Id,
+PRD_Key,
+PRD_StartDate,
+PRD_EndDate
+FROM silver.crm_product_info
+WHERE PRD_StartDate > PRD_EndDate 
+
+-- Validating data in silver. sales table
+
+SELECT * FROM bronze.crm_sales_info
+-- Check unwanted spaces in string value columns in sales table 
+SELECT 
+Sales_OrderNo
+FROM bronze.crm_sales_info
+WHERE Sales_OrderNo != TRIM(Sales_OrderNo) 
+
+-- Checking Nulls in the product key
+SELECT 
+Sales_ProductKey 
+FROM bronze.crm_sales_info
+WHERE Sales_ProductKey IS NULL
+
+-- Checking nulls in Customer ID
+SELECT 
+Sales_CustomerId
+FROM bronze.crm_sales_info
+WHERE Sales_CustomerId IS NULL
+
+-- Check orderdate, ship date and due date, whether there are nulls in ordedate and ship date or any negative values or if due date is 
+--before the order date
+SELECT 
+Sales_OrderDate,
+Sales_ShipDate,
+Sales_DueDate
+FROM bronze.crm_sales_info
+WHERE Sales_OrderDate IS NULL
+
+SELECT 
+Sales_OrderDate
+FROM bronze.crm_sales_info
+WHERE Sales_OrderDate > Sales_ShipDate 
+
+-- Validating if Sales has any nulls or 0, quantity has nulls or 0, price has any nulls or 0, nd if sales amount is not matching when multiplying
+-- quantity with price 
+-- If sales is null or 0 then calculate sales with quantity * price
+-- if quantity is null or 0 the calculate quantity with sales/price
+-- if price is null or 0 then calculate price with sales/quantity
+
+SELECT
+Sales_SaleAmount As Old,
+Sales_Price As OldPrice,
+Sales_Quantity As oldQnty
+FROM bronze.crm_sales_info
+WHERE Sales_SaleAmount IS NULL OR Sales_Quantity IS NULL OR Sales_Price IS NULL
+OR Sales_SaleAmount <=0 OR Sales_Quantity <=0 OR Sales_Price <= 0 OR
+Sales_SaleAmount != Sales_Quantity * Sales_Price                                                      
+
+-- Check orderdate, ship date and due date, whether there are nulls in ordedate and ship date or any negative values or if due date is 
+--before the order date
+-- After transformation --
+SELECT 
+Sales_OrderDate,
+Sales_ShipDate,
+Sales_DueDate
+FROM silver.crm_sales_info
+WHERE Sales_OrderDate IS NULL OR Sales_ShipDate IS NULL OR Sales_DueDate IS NULl
+
+-- After transformation --
+SELECT 
+Sales_OrderDate
+FROM silver.crm_sales_info
+WHERE Sales_OrderDate > Sales_ShipDate OR Sales_OrderDate > Sales_DueDate OR Sales_ShipDate > Sales_DueDate
+
+-- Validating if Sales has any nulls or 0, quantity has nulls or 0, price has any nulls or 0, nd if sales amount is not matching when multiplying
+-- quantity with price 
+-- If sales is null or 0 then calculate sales with quantity * price
+-- if quantity is null or 0 the calculate quantity with sales/price
+-- if price is null or 0 then calculate price with sales/quantity
+-- After transformation --
+
+SELECT
+Sales_SaleAmount As Old,
+Sales_Price As OldPrice,
+Sales_Quantity As oldQnty
+FROM silver.crm_sales_info
+WHERE Sales_SaleAmount IS NULL OR Sales_Quantity IS NULL OR Sales_Price IS NULL
+OR Sales_SaleAmount <=0 OR Sales_Quantity <=0 OR Sales_Price <= 0 OR
+Sales_SaleAmount != Sales_Quantity * Sales_Price                                                      
+
+-- Checking bronze cust_az2 table
+-- Validate primary key 
+-- Validate bdate
+-- validate gender
+SELECT * FROM bronze.erp_cust_az12
+
+SELECT * FROM silver.crm_customer_info
+
+-- Here the CId in cust_az12 table is not matching with CST key in customer table hence we will ensure both have the same format
+-- It has 'NAS added in front --
+SELECT ERP_CID
+FROM bronze.erp_cust_az12
+WHERE ERP_CID like '%AW00011000%'
+
+-- Check the bdate values, if there is an invalid bday's like more than 100 years or if the birth date is future date --
+SELECT
+ERP_Birthdate
+FROM bronze.erp_cust_az12
+WHERE ERP_BirthDate < '1926-01-01' OR ERP_BirthDate > GETDATE()
+
+-- Check gender values and make it consistent -- Like it should have only values like Female, male or Unknown in case missing--
+SELECT
+ERP_Gender
+FROM bronze.erp_cust_az12
+WHERE ERP_Gender NOT IN ('Female', 'Male')
+
+-- Validating after transformation --
+SELECT ERP_CID
+FROM silver.erp_cust_az12
+WHERE ERP_CID like 'NAS%'
+
+-- Check the bdate values, if there is an invalid bday's like more than 100 years or if the birth date is future date --
+-- Validating after transformation --
+SELECT
+ERP_Birthdate
+FROM silver.erp_cust_az12
+WHERE ERP_BirthDate < '1926-01-01' OR ERP_BirthDate > GETDATE()
+
+-- Check gender values and make it consistent -- Like it should have only values like Female, male or Unknown in case missing--
+-- Validating after transformation --
+SELECT
+ERP_Gender
+FROM silver.erp_cust_az12
+WHERE ERP_Gender NOT IN ('Female', 'Male')
+
+-- Check cust_key in customer info table matches with CId in location, if not make the changes -- Here there is - in ERP_CID in location table
+-- which is not in cust_key in customer table -- After transforming check with silver table instead of bronze
+SELECT
+ERP_CID
+FROM silver.erp_loc_a101
+WHERE ERP_CID NOT IN (SELECT CST_Key FROM silver.crm_customer_info)
+
+-- Here counry columns has inconsistent values like DE and germany, US, USA and United states -- 
+-- After transforming check with silver table instead of bronze
+SELECT 
+DISTINCT ERP_Country
+FROM silver.erp_loc_a101
+
+-- validating table silver_px_cat_g1v2
+SELECT * FROM bronze.erp_px_cat_g1v2;
+SELECT * FROM bronze.crm_product_info
+--The product key in product file and ERP_product categories file is not matching, so make the changes accordingly
+-- CHECKING ERP_category nulls
+SELECT ERP_Category FROM bronze.erp_px_cat_g1v2 WHERE ERP_Category IS NULL
+-- CHECKING ERP_sub-category nulls
+SELECT ERP_Subcategory FROM bronze.erp_px_cat_g1v2 WHERE ERP_Subcategory IS NULL
+-- Checking unique categories
+SELECT DISTINCT ERP_Category FROM bronze.erp_px_cat_g1v2
+-- Checking unique Maintenance values
+SELECT DISTINCT ERP_Maintenance FROM bronze.erp_px_cat_g1v2
+
+
+=== Gold layer data quality checks --
+
+-- Validating gold.sales fact table
+
+-- Check if there are any nulls appeared after joining dim tables
+SELECT
+Product_Id,
+Customer_Key
+FROM gold.fact_sales
+WHERE Product_Id IS NULL OR Customer_Key IS NULL
+
+-- -- Check foreign key integrity in customers table
+SELECT * 
+FROM gold.fact_sales sa
+LEFT JOIN gold.dim_customers cr
+ON cr.Customer_key = sa.Customer_Key
+WHERE cr.customer_Key IS NULL
+
+-- quality checks in gold customer table --
+SELECT * FROM gold.dim_customers;
+
+SELECT
+COUNT(*)
+FROM gold.dim_customers
+GROUP BY Customer_ID
+HAVING COUNT(*) > 1
+
+SELECT Customer_ID
+FROM gold.dim_customers
+WHERE Customer_ID IS NULL
+
+SELECT DISTINCT Gender
+FROM gold.dim_customers
+
+-- -- Check foreign key integrity in products table
+SELECT * 
+FROM gold.fact_sales sa
+LEFT JOIN gold.dim_products pr
+ON pr.product_key = sa.Product_Key
+WHERE pr.product_key IS NULL
+
+SELECT * FROM gold.dim_customers;
+SELECT * FROM gold.dim_products;

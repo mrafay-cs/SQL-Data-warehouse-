@@ -1,0 +1,180 @@
+=============================================================================
+Created silver layer tables 
+=============================================================================
+==================================================
+--- Create tables for CRM data for bronze layer --
+====================================================
+-- Handling Duplicates and Nulll vales in customer info table --
+PRINT '>> Truncating the table before inserting data'
+TRUNCATE TABLE silver.crm_customer_info
+PRINT '>> Inserting the data into the table silver.crm_customer_info'
+INSERT INTO silver.crm_customer_info
+(CST_Id,CST_Key,CST_FirstName,CST_LastName,CST_MaritalStatus, CST_Gender,CST_CreateDate) 
+SELECT 
+CST_Id,
+CST_Key,
+TRIM(CST_FirstName) AS First_Name,
+TRIM(CST_LastName) Last_Name,
+CASE WHEN UPPER(CST_MaritalStatus) = 'M' THEN 'Married'
+	 WHEN UPPER(CST_MaritalStatus) = 'S' THEN 'Single'
+	 ELSE 'Unknown'
+	 END CST_MaritalStatus,
+CASE WHEN UPPER(CST_Gender) = 'F' THEN 'Female'
+	 WHEN UPPER(CST_Gender) = 'M' THEN 'Male'
+	 ELSE 'Unknown'
+	 END CST_Gender,
+CST_CreateDate
+FROM
+(SELECT *,
+ROW_NUMBER() OVER(Partition by CST_Id Order BY CST_CreateDate DESC) As Latest_Record
+FROM bronze.crm_customer_info
+WHERE CST_Id IS NOT NULL) Rank_Table
+WHERE Latest_Record = 1 
+
+-- Inserting data into silver table for product info -- 
+
+-- Check nulls, handle nulls and duplicates in primary key in product table - Done in another tab (Data validation tab)
+-- Extract CategoryID from Prd_Key and -- Extract Prd_Key from Prd_Key of last characters --
+-- Check and Trim unwanted spaces in string value columns 
+-- Check for NULLS and Negative numbers in cost columns and replace nulls with O
+-- Change the low cardinality values of columns into readable and user friendly values, in this case change product line into readable format
+-- Like M is Mountain, R is road, S is Other sales, T is touring 
+-- validate start date and end date and ensure that end date is after the start date, if not discuss the solution with the manager and the best approach is changing the 
+-- end date after the start date --
+SELECT * FROM bronze.crm_product_info;
+PRINT '>> Truncating the table silver.crm_product_info before inserting data'
+TRUNCATE TABLE silver.crm_product_info
+PRINT '>> Inserting the data into the table silver.crm_product_info'
+INSERT INTO silver.crm_product_info
+(PRD_Id,
+PRD_Key,
+Category_ID,
+PRD_Name,
+PRD_Cost,
+PRD_Line,
+PRD_StartDate,
+PRD_EndDate)
+SELECT
+PRD_ID,
+SUBSTRING(PRD_Key,7,LEN(PRD_Key)) AS PRD_Key_New,
+REPLACE(SUBSTRING(PRD_Key,1,5), '-','_') AS Category_ID,
+TRIM(PRD_Name) AS Product_Name,
+ISNULL((PRD_Cost), 0) AS Product_Cost,
+CASE UPPER(TRIM (PRD_Line)) 
+	 WHEN 'M' THEN 'Mountain'
+	 WHEN 'R' THEN 'Road'
+	 WHEN 'S' THEN 'Other Sales'
+	 WHEN 'T' THEN 'Touring'
+	 ELSE 'N/A'
+	 END AS Product_Line,
+CAST(PRD_StartDate AS DATE) AS Product_start_date,
+CAST(LEAD(PRD_StartDate) OVER(PARTITION BY PRD_Key ORDER BY PRD_StartDate) AS DATE) product_end_date
+FROM bronze.crm_product_info
+
+SELECT * FROM silver.crm_product_info
+
+PRINT '>> Truncating the table silver.crm_sales_info before inserting data'
+TRUNCATE TABLE silver.crm_sales_info
+PRINT '>> Inserting the data into the table silver.crm_sales_info'
+-- Inserting data into silver table for sales info -- 
+INSERT INTO silver.crm_sales_info (
+Sales_OrderNo,
+Sales_ProductKey,
+Sales_CustomerId,
+Sales_OrderDate,
+Sales_ShipDate,
+Sales_DueDate,
+Sales_SaleAmount,
+Sales_Quantity,
+Sales_Price)
+SELECT 
+TRIM(Sales_OrderNo) AS Sales_OrderNo,
+Sales_ProductKey,
+Sales_CustomerId,
+CASE WHEN Sales_OrderDate = 0 OR LEN(Sales_OrderDate) !=8 THEN LAG(Sales_ShipDate) Over(Order BY Sales_ShipDate)
+ELSE CAST(CAST(Sales_OrderDate AS VARCHAR) AS DATE) 
+END Sales_OrderDate,
+CASE WHEN Sales_ShipDate = 0 OR LEN(Sales_ShipDate) !=8 THEN NULL
+ELSE CAST(CAST(Sales_ShipDate AS VARCHAR) AS DATE) 
+END Sales_ShipDate,
+CASE WHEN Sales_DueDate = 0 OR LEN(Sales_DueDate) !=8 THEN NULL
+ELSE CAST(CAST(Sales_DueDate AS VARCHAR) AS DATE) 
+END Sales_DueDate,
+CASE WHEN Sales_SaleAmount IS NULL OR Sales_SaleAmount <=0 OR Sales_SaleAmount != Sales_Quantity * ABS(Sales_Price) THEN
+Sales_Quantity * ABS(Sales_Price)
+ELSE Sales_SaleAmount
+END Sale_SaleAmt,
+CASE WHEN Sales_Quantity IS NULL OR Sales_Quantity <=0 THEN
+CAST(Sales_SaleAmount AS INT) / ABS(Sales_Price)
+ELSE Sales_Quantity
+END Sale_Qnty,
+CASE WHEN Sales_Price IS NULL OR Sales_Price  <=0 THEN
+Sales_SaleAmount / NULLIF(Sales_Quantity,0)
+ELSE Sales_Price 
+END Sale_Price
+FROM bronze.crm_sales_info
+
+SELECT * FROM silver.crm_sales_info
+
+-- Create cust_az12 silver layer table -- 
+-- Ensure CID matches with cust_key in customer info table --
+-- Ensure birthdate should not be more than 100years older or its in the future date make them null --
+-- Ensure that gender is having only two consistent values like Female and Male only otherwise unknown --
+PRINT '>> Truncating the table silver.erp_cust_az12 before inserting data'
+TRUNCATE TABLE silver.erp_cust_az12
+PRINT '>> Inserting the data into the table silver.erp_cust_az12'
+INSERT INTO silver.erp_cust_az12 (
+ERP_CID,
+ERP_BirthDate,
+ERP_Gender)
+SELECT 
+CASE WHEN ERP_CID Like 'NAS%' THEN SUBSTRING(ERP_CID,4,LEN(ERP_CID))
+ELSE ERP_CID
+END ERP_cid,
+CASE WHEN ERP_BirthDate < '1926-12-31' OR ERP_BirthDate > GETDATE() THEN NULL
+ELSE ERP_Birthdate
+END ERP_birthdate,
+CASE WHEN ERP_Gender IN ('F', 'Female') THEN 'Female'
+	 WHEN ERP_Gender IN ('M', 'Male') THEN 'Male'
+	 WHEN ERP_Gender IS NULL THEN 'Unknown'
+	 END ERP_Gen
+FROM bronze.erp_cust_az12 
+
+-- Here there is - in ERP_CID in location table --
+-- which is not in cust_key in customer table --
+-- Here counry columns has inconsistent values like DE and germany, US, USA and United states so make it consistent --
+PRINT '>> Truncating the table silver.erp_loc_a101 before inserting data'
+TRUNCATE TABLE silver.erp_loc_a101
+PRINT '>> Inserting the data into the table silver.erp_loc_a101'
+INSERT INTO silver.erp_loc_a101 (
+	ERP_CID,
+	ERP_Country
+)
+SELECT
+	REPLACE(ERP_CID, '-', '') AS ERP_CID,
+	CASE 
+		WHEN UPPER(TRIM(ERP_Country)) IN ('DE', 'GERMANY') THEN 'Germany'
+		WHEN UPPER(TRIM(ERP_Country)) IN ('US', 'USA', 'UNITED STATES') THEN 'United States'
+		WHEN UPPER(TRIM(ERP_Country)) IN ('UK', 'UNITED KINGDOM') THEN 'United Kingdom'
+		WHEN TRIM(ERP_Country) = '' OR ERP_Country IS NULL THEN 'n/a'
+		ELSE TRIM(ERP_Country)
+	END AS ERP_Country
+FROM bronze.erp_loc_a101;
+
+SELECT * FROM silver.erp_loc_a101 
+
+-- In table silver_px_cat_g1v2 only product key needs to be changed
+PRINT '>> Truncating the table silver.erp_px_cat_g1v2 before inserting data'
+TRUNCATE TABLE silver.erp_px_cat_g1v2
+PRINT '>> Inserting the data into the table silver.erp_px_cat_g1v2'
+INSERT INTO silver.erp_px_cat_g1v2(
+ERP_ID,
+ERP_Category,
+ERP_Subcategory,
+ERP_Maintenance)
+SELECT
+REPLACE(ERP_ID, '_', '-') AS ERP_Prd_Id,
+ERP_Category,
+ERP_Subcategory,
+ERP_Maintenance
+FROM bronze.erp_px_cat_g1v2

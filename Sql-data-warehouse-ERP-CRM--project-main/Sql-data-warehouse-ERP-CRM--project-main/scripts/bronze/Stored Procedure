@@ -1,0 +1,98 @@
+======================================================
+Created Bronze layer tables 
+======================================================
+
+CREATE OR ALTER PROCEDURE bronze.load_bronzelayer AS 
+BEGIN	
+	BEGIN TRY
+		PRINT '================================================================';
+		PRINT 'Loading Bronze layer';
+		PRINT '================================================================';
+
+		PRINT '================================================================';
+		PRINT 'Loading CRM Tables ';
+		PRINT '================================================================';
+
+		-- First we are Truncating the table i.e deleting everuthing in the table to make sure the table is empty and then 
+		-- we are bulk inserting the data into the created table from the folder 
+		-- Inserting customer data into customer table --
+		PRINT '>> Truncating table: bronze.crm_customer_info';
+		TRUNCATE TABLE bronze.crm_customer_info; -- Deletes data from the table
+		PRINT '>> Inserting into Table: bronze.crm_customer_info';
+		BULK INSERT bronze.crm_customer_info -- Inserts the data into the table
+		FROM 'C:\Users\Test\Desktop\SQL Projects Practice\sql-data-warehouse-project\datasets\source_crm\cust_info.csv' -- Path of the folder and file name
+		WITH (
+		FIRSTROW = 2, -- Firstrow marking as header
+		FIELDTERMINATOR = ',', -- ensuring columns are separated by delimiter(,)
+		TABLOCK -- Locking the complete table
+		);
+
+		-- Inserting Product data into Product table --
+		PRINT '>> Truncating table: bronze.crm_product_info';
+		TRUNCATE TABLE bronze.crm_product_info; 
+		PRINT '>> Inserting into Table: bronze.crm_product_info';
+		BULK INSERT bronze.crm_product_info -- 
+		FROM 'C:\Users\Test\Desktop\SQL Projects Practice\sql-data-warehouse-project\datasets\source_crm\prd_info.csv'  
+		WITH (
+		FIRSTROW = 2, 
+		FIELDTERMINATOR = ',',
+		TABLOCK 
+		);
+
+		-- Inserting Sales data into sales table --
+		PRINT '>> Truncating table: bronze.crm_sales_info';
+		TRUNCATE TABLE bronze.crm_sales_info; 
+		PRINT '>> Inserting into Table: bronze.crm_sales_info';
+		BULK INSERT bronze.crm_sales_info -- 
+		FROM 'C:\Users\Test\Desktop\SQL Projects Practice\sql-data-warehouse-project\datasets\source_crm\sales_details.csv'  
+		WITH (
+		FIRSTROW = 2, 
+		FIELDTERMINATOR = ',',
+		TABLOCK 
+		);
+
+		PRINT '================================================================';
+		PRINT 'Loading ERP Tables ';
+		PRINT '================================================================';
+		-- Inserting CUST_AZ12 data into its table --
+		PRINT '>> Truncating table: bronze.erp_cust_az12';
+		TRUNCATE TABLE bronze.erp_cust_az12; 
+		PRINT '>> Inserting into Table: bronze.erp_cust_az12';
+		BULK INSERT bronze.erp_cust_az12 
+		FROM 'C:\Users\Test\Desktop\SQL Projects Practice\sql-data-warehouse-project\datasets\source_erp\CUST_AZ12.CSV'  
+		WITH (
+		FIRSTROW = 2, 
+		FIELDTERMINATOR = ',',
+		TABLOCK 
+		);
+
+		-- Inserting location data into its table --
+		PRINT '>> Truncating table: bronze.erp_loc_a101';
+		TRUNCATE TABLE bronze.erp_loc_a101; 
+		PRINT '>> Inserting into Table: bronze.erp_loc_a101';
+		BULK INSERT bronze.erp_loc_a101 
+		FROM 'C:\Users\Test\Desktop\SQL Projects Practice\sql-data-warehouse-project\datasets\source_erp\LOC_A101.CSV'  
+		WITH (
+		FIRSTROW = 2, 
+		FIELDTERMINATOR = ',',
+		TABLOCK 
+		);
+
+		-- Inserting Categories data into its table --
+		PRINT '>> Truncating table: bronze.erp_px_cat_g1v2';
+		TRUNCATE TABLE bronze.erp_px_cat_g1v2; 
+		PRINT '>> Inserting into Table: bronze.erp_px_cat_g1v2';
+		BULK INSERT bronze.erp_px_cat_g1v2
+		FROM 'C:\Users\Test\Desktop\SQL Projects Practice\sql-data-warehouse-project\datasets\source_erp\PX_CAT_G1V2.CSV'  
+		WITH (
+		FIRSTROW = 2, 
+		FIELDTERMINATOR = ',',
+		TABLOCK 
+		);
+	END TRY
+	 BEGIN CATCH
+		PRINT '================================================================';
+		PRINT 'Error occured while loading bronze layer';
+		PRINT '================================================================';
+	 END CATCH;
+END
