@@ -50,10 +50,6 @@ Examine sales growth, order patterns, seasonal trends, and key performance indic
 ## Business Value 
 These insights enable stakeholders to monitor key business metrics, identify opportunities for improvement, and make data-driven strategic decisions.
 
-## About Me 
-Hi, I’m Akhila Reddy, BI Developer with a strong experience in SQL, data warehousing, ETL, and Power BI. I’m passionate about building end-to-end data solutions that transform raw data into structured, reliable, and business-ready insights.
-
-This project showcases my practical experience in modern data warehouse development, data modeling, and analytics, and reflects my commitment to developing real-world skills in business intelligence and data-driven problem solving.
 
 
 
